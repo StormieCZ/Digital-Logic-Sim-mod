@@ -25,7 +25,7 @@ namespace DLS.Graphics
 
 			using (UI.BeginBoundsScope(true))
 			{
-				UI.DrawText("Pulse Width (ticks)", theme.FontBold, theme.FontSizeRegular, pos, Anchor.TextCentre, Color.white * 0.8f);
+				UI.DrawText("Pulse Width (ticks) [UwU]", theme.FontBold, theme.FontSizeRegular, pos, Anchor.TextCentre, Color.white * 0.8f);
 
 				InputFieldTheme inputFieldTheme = DrawSettings.ActiveUITheme.ChipNameInputField;
 				inputFieldTheme.fontSize = DrawSettings.ActiveUITheme.FontSizeRegular;

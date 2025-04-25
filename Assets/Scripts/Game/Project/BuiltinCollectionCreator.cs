@@ -21,7 +21,8 @@ namespace DLS.Game
 				CreateChipCollection("BASIC",
 					ChipType.Nand,
 					ChipType.Clock,
-					ChipType.Pulse,
+                    ChipType.AdjsClock,
+                    ChipType.Pulse,
 					ChipType.Key,
 					ChipType.TriStateBuffer
 				),
@@ -29,23 +30,34 @@ namespace DLS.Game
 					ChipType.In_1Bit,
 					ChipType.In_4Bit,
 					ChipType.In_8Bit,
-					ChipType.Out_1Bit,
+                    ChipType.In_16Bit,
+                    ChipType.In_32Bit,
+                    ChipType.Out_1Bit,
 					ChipType.Out_4Bit,
-					ChipType.Out_8Bit
-				),
+					ChipType.Out_8Bit,
+                    ChipType.Out_16Bit,
+                    ChipType.Out_32Bit
+                ),
 				CreateChipCollection("MERGE/SPLIT",
 					ChipType.Merge_1To4Bit,
 					ChipType.Merge_1To8Bit,
 					ChipType.Merge_4To8Bit,
-					ChipType.Split_4To1Bit,
+                    ChipType.Merge_8To16Bit,
+                    ChipType.Merge_16To32Bit,
+                    ChipType.Split_4To1Bit,
 					ChipType.Split_8To4Bit,
-					ChipType.Split_8To1Bit
-				),
+					ChipType.Split_8To1Bit,
+                    ChipType.Split_16To8Bit,
+                    ChipType.Split_32To16Bit
+
+                ),
 				CreateChipCollection("BUS",
 					ChipType.Bus_1Bit,
 					ChipType.Bus_4Bit,
-					ChipType.Bus_8Bit
-				),
+					ChipType.Bus_8Bit,
+					ChipType.Bus_16Bit,
+                    ChipType.Bus_32Bit
+                ),
 				CreateChipCollection("DISPLAY",
 					ChipType.SevenSegmentDisplay,
 					ChipType.DisplayDot,

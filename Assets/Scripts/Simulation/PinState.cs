@@ -6,8 +6,9 @@ namespace DLS.Simulation
 		public const uint LogicLow = 0;
 		public const uint LogicHigh = 1;
 		public const uint LogicDisconnected = 2;
+        public const uint LogicUwU = 3;
 
-		public readonly int BitCount;
+        public readonly int BitCount;
 
 		// LOW/HIGH state of each bit
 		uint bitStates;
@@ -72,13 +73,56 @@ namespace DLS.Simulation
 			}
 		}
 
-		public void Set8BitFrom4BitSources(PinState a, PinState b)
+        public void Set8BitFrom16BitSource(PinState source16bit, bool firstNibble)
+        {
+            if (firstNibble)
+            {
+                const uint mask = 0b11111111;
+                bitStates = source16bit.bitStates & mask;
+                tristateFlags = source16bit.tristateFlags & mask;
+            }
+            else
+            {
+                const uint mask = 0b1111111100000000;
+                bitStates = (source16bit.bitStates & mask) >> 8;
+				tristateFlags = (source16bit.tristateFlags & mask) >> 8;
+            }
+        }
+
+        public void Set16BitFrom32BitSource(PinState source16bit, bool firstNibble)
+        {
+            if (firstNibble)
+            {
+                const uint mask = 0b1111111111111111;
+                bitStates = source16bit.bitStates & mask;
+                tristateFlags = source16bit.tristateFlags & mask;
+            }
+            else
+            {
+                const uint mask = 0b11111111111111110000000000000000;
+                bitStates = (source16bit.bitStates & mask) >> 16;
+                tristateFlags = (source16bit.tristateFlags & mask) >> 16;
+            }
+        }
+
+
+        public void Set8BitFrom4BitSources(PinState a, PinState b)
 		{
 			bitStates = a.bitStates | (b.bitStates << 4);
 			tristateFlags = a.tristateFlags | (b.tristateFlags << 4);
 		}
+        public void Set16BitFrom8BitSources(PinState a, PinState b)
+        {
+            bitStates = a.bitStates | (b.bitStates << 8);
+            tristateFlags = a.tristateFlags | (b.tristateFlags << 8);
+        }
+        public void Set32BitFrom16BitSources(PinState a, PinState b)
+        {
+            bitStates = a.bitStates | (b.bitStates << 16);
+            tristateFlags = a.tristateFlags | (b.tristateFlags << 16);
+        }
 
-		public void Toggle(int bitIndex)
+        public void Toggle(int bitIndex)
 		{
 			bitStates ^= 1u << bitIndex;
 

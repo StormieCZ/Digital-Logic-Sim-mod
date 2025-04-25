@@ -13,7 +13,9 @@ namespace DLS.Graphics
 		public const float PinHeight1Bit = 0.185f;
 		public const float PinHeight4Bit = 0.3f;
 		public const float PinHeight8Bit = 0.43f;
-		public const float PinRadius = PinHeight1Bit / 2;
+        public const float PinHeight16Bit = 0.83f;
+        public const float PinHeight32Bit = 1.642069f;
+        public const float PinRadius = PinHeight1Bit / 2;
 
 		public const FontType FontBold = FontType.JetbrainsMonoBold;
 		public const FontType FontRegular = FontType.JetbrainsMonoRegular;
@@ -25,7 +27,7 @@ namespace DLS.Graphics
 		public const float SelectionBoundsPadding = 0.08f;
 		public const float ChipOutlineWidth = 0.05f;
 		public const float WireThickness = 0.025f;
-		public const float WireHighlightedThickness = WireThickness + 0.012f;
+		public const float WireHighlightedThickness = WireThickness + 0.018f;
 		public const float GridThickness = 0.0035f;
 		public const float DefaultPinSpacing = GridSize * 2;
 		public const float DevPinStateDisplayRadius = 0.2f;
@@ -63,8 +65,9 @@ namespace DLS.Graphics
 				new(0.1f, 0.14f, 0.35f),
 				new(0.19f, 0.12f, 0.28f),
 				new(0.25f, 0.1f, 0.25f),
-				new(whiteLow, whiteLow, whiteLow)
-			};
+				new(whiteLow, whiteLow, whiteLow),
+                new(0f, 0f, 0f)
+            };
 
 			Color[] stateHigh =
 			{
@@ -74,8 +77,10 @@ namespace DLS.Graphics
 				new(0.2f, 0.5f, 1f),
 				new(0.6f, 0.4f, 0.98f),
 				new(0.84f, 0.33f, 0.9f),
-				new(whiteHigh, whiteHigh, whiteHigh)
-			};
+				new(whiteHigh, whiteHigh, whiteHigh),
+                new(Random.Range(0.0f, 1.0f), Random.Range(0.0f, 1.0f), Random.Range(0.0f, 1.0f))
+
+            };
 
 			Color[] stateHover = stateLow.Select(c => Brighten(c, 0.1f)).ToArray();
 

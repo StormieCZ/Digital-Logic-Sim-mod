@@ -214,7 +214,26 @@ namespace DLS.Simulation
 					chip.OutputPins[0].State.SetBit(0, high ? PinState.LogicHigh : PinState.LogicLow);
 					break;
 				}
-				case ChipType.Pulse:
+                case ChipType.AdjsClock:
+                    {
+                        bool high = stepsPerClockTransition != 0 && ((simulationFrame / stepsPerClockTransition) & 1) == 0;
+						if (chip.InputPins[0].State.GetBit(0) == 1)
+						{
+                            high = stepsPerClockTransition != 0 && ((simulationFrame / (stepsPerClockTransition/2) & 1)) == 0;
+							if (chip.InputPins[1].State.GetBit(0) == 1)
+							{
+                                high = stepsPerClockTransition != 0 && ((simulationFrame / (stepsPerClockTransition / 5) & 1)) == 0;
+                            }
+
+                            }
+						else if (chip.InputPins[1].State.GetBit(0) == 1)
+						{
+                            high = stepsPerClockTransition != 0 && ((simulationFrame / (stepsPerClockTransition / 3) & 1)) == 0;
+                        }
+                        chip.OutputPins[0].State.SetBit(0, high ? PinState.LogicHigh : PinState.LogicLow);
+                        break;
+                    }
+                case ChipType.Pulse:
 					const int pulseDurationIndex = 0;
 					const int pulseTicksRemainingIndex = 1;
 					const int pulseInputOldIndex = 2;
@@ -282,7 +301,23 @@ namespace DLS.Simulation
 					out8.State.Set8BitFrom4BitSources(in4B.State, in4A.State);
 					break;
 				}
-				case ChipType.Split_8To4Bit:
+                case ChipType.Merge_8To16Bit:
+                    {
+                        SimPin in8A = chip.InputPins[0];
+                        SimPin in8B = chip.InputPins[1];
+                        SimPin out16 = chip.OutputPins[0];
+                        out16.State.Set16BitFrom8BitSources(in8A.State, in8B.State);
+                        break;
+                    }
+                case ChipType.Merge_16To32Bit:
+                    {
+                        SimPin in16A = chip.InputPins[0];
+                        SimPin in16B = chip.InputPins[1];
+                        SimPin out32 = chip.OutputPins[0];
+                        out32.State.Set32BitFrom16BitSources(in16A.State, in16B.State);
+                        break;
+                    }
+                case ChipType.Split_8To4Bit:
 				{
 					SimPin in8 = chip.InputPins[0];
 					SimPin out4A = chip.OutputPins[0];
@@ -291,14 +326,32 @@ namespace DLS.Simulation
 					out4B.State.Set4BitFrom8BitSource(in8.State, true);
 					break;
 				}
-				case ChipType.Split_8To1Bit:
+                case ChipType.Split_16To8Bit:
+                    {
+                        SimPin in8 = chip.InputPins[0];
+                        SimPin out8A = chip.OutputPins[0];
+                        SimPin out8B = chip.OutputPins[1];
+                        out8A.State.Set8BitFrom16BitSource(in8.State, false);
+                        out8B.State.Set8BitFrom16BitSource(in8.State, true);
+                        break;
+                    }
+                case ChipType.Split_32To16Bit:
+                    {
+                        SimPin in32 = chip.InputPins[0];
+                        SimPin out16A = chip.OutputPins[0];
+                        SimPin out16B = chip.OutputPins[1];
+                        out16A.State.Set16BitFrom32BitSource(in32.State, false);
+                        out16B.State.Set16BitFrom32BitSource(in32.State, true);
+                        break;
+                    }
+                case ChipType.Split_8To1Bit:
 					for (int i = 0; i < 8; i++)
 					{
 						chip.OutputPins[i].State.SetBit(0, chip.InputPins[0].State.GetBit(7 - i));
 					}
 
 					break;
-				case ChipType.TriStateBuffer:
+                case ChipType.TriStateBuffer:
 				{
 					SimPin dataPin = chip.InputPins[0];
 					SimPin enablePin = chip.InputPins[1];

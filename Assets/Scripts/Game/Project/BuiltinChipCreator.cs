@@ -21,12 +21,17 @@ namespace DLS.Game
 				CreateInputOrOutputPin(ChipType.Out_4Bit),
 				CreateInputOrOutputPin(ChipType.In_8Bit),
 				CreateInputOrOutputPin(ChipType.Out_8Bit),
-				CreateInputKeyChip(),
+                CreateInputOrOutputPin(ChipType.In_16Bit),
+                CreateInputOrOutputPin(ChipType.Out_16Bit),
+                CreateInputOrOutputPin(ChipType.In_32Bit),
+                CreateInputOrOutputPin(ChipType.Out_32Bit),
+                CreateInputKeyChip(),
 				// ---- Basic Chips ----
 				CreateNand(),
 				CreateTristateBuffer(),
 				CreateClock(),
-				CreatePulse(),
+                CreateAdjsClock(),
+                CreatePulse(),
 				// ---- Memory ----
 				dev_CreateRAM_8(),
 				CreateROM_8(),
@@ -34,8 +39,11 @@ namespace DLS.Game
 				CreateBitConversionChip(ChipType.Split_4To1Bit, PinBitCount.Bit4, PinBitCount.Bit1, 1, 4),
 				CreateBitConversionChip(ChipType.Split_8To4Bit, PinBitCount.Bit8, PinBitCount.Bit4, 1, 2),
 				CreateBitConversionChip(ChipType.Split_8To1Bit, PinBitCount.Bit8, PinBitCount.Bit1, 1, 8),
-
-				CreateBitConversionChip(ChipType.Merge_1To8Bit, PinBitCount.Bit1, PinBitCount.Bit8, 8, 1),
+                CreateBitConversionChip(ChipType.Split_16To8Bit, PinBitCount.Bit16, PinBitCount.Bit8, 1, 2),
+                CreateBitConversionChip(ChipType.Merge_8To16Bit, PinBitCount.Bit8, PinBitCount.Bit16, 2, 1),
+				CreateBitConversionChip(ChipType.Split_32To16Bit, PinBitCount.Bit32, PinBitCount.Bit16, 1, 2),
+                CreateBitConversionChip(ChipType.Merge_16To32Bit, PinBitCount.Bit16, PinBitCount.Bit32, 2, 1),
+                CreateBitConversionChip(ChipType.Merge_1To8Bit, PinBitCount.Bit1, PinBitCount.Bit8, 8, 1),
 				CreateBitConversionChip(ChipType.Merge_1To4Bit, PinBitCount.Bit1, PinBitCount.Bit4, 4, 1),
 				CreateBitConversionChip(ChipType.Merge_4To8Bit, PinBitCount.Bit4, PinBitCount.Bit8, 2, 1),
 				// ---- Displays ----
@@ -49,8 +57,12 @@ namespace DLS.Game
 				CreateBus(PinBitCount.Bit4),
 				CreateBusTerminus(PinBitCount.Bit4),
 				CreateBus(PinBitCount.Bit8),
-				CreateBusTerminus(PinBitCount.Bit8)
-			};
+				CreateBusTerminus(PinBitCount.Bit8),
+                CreateBus(PinBitCount.Bit16),
+                CreateBusTerminus(PinBitCount.Bit16),
+                CreateBus(PinBitCount.Bit32),
+                CreateBusTerminus(PinBitCount.Bit32)
+            };
 		}
 
 		static ChipDescription CreateNand()
@@ -131,7 +143,16 @@ namespace DLS.Game
 			return CreateBuiltinChipDescription(ChipType.Clock, size, col, null, outputPins);
 		}
 
-		static ChipDescription CreatePulse()
+        static ChipDescription CreateAdjsClock()
+        {
+            Vector2 size = new(GridHelper.SnapToGrid(2.3f), GridSize *5f);
+            Color col = new(0.1f, 0.2f, 0.2f);
+            PinDescription[] outputPins = { CreatePinDescription("CLK", 0) };
+            PinDescription[] inputPins = { CreatePinDescription("Freq0", 1), CreatePinDescription("Freq1", 2) };
+            return CreateBuiltinChipDescription(ChipType.AdjsClock, size, col, inputPins, outputPins);
+        }
+
+        static ChipDescription CreatePulse()
 		{
 			Vector2 size = new(GridHelper.SnapToGrid(1), GridSize * 3);
 			Color col = new(0.1f, 0.1f, 0.1f);
@@ -301,7 +322,9 @@ namespace DLS.Game
 				PinBitCount.Bit1 => new Vector2(GridSize * 2, GridSize * 2),
 				PinBitCount.Bit4 => new Vector2(GridSize * 2, GridSize * 3),
 				PinBitCount.Bit8 => new Vector2(GridSize * 2, GridSize * 4),
-				_ => throw new Exception("Bus bit count not implemented")
+                PinBitCount.Bit16 => new Vector2(GridSize * 2.25f, GridSize * 8.6f),
+                PinBitCount.Bit32 => new Vector2(GridSize * 2.5f, GridSize * 13.5f),
+                _ => throw new Exception("Bus bit count not implemented")
 			};
 		}
 
@@ -312,7 +335,9 @@ namespace DLS.Game
 				PinBitCount.Bit1 => ChipType.Bus_1Bit,
 				PinBitCount.Bit4 => ChipType.Bus_4Bit,
 				PinBitCount.Bit8 => ChipType.Bus_8Bit,
-				_ => throw new Exception("Bus bit count not implemented")
+                PinBitCount.Bit16 => ChipType.Bus_16Bit,
+                PinBitCount.Bit32 => ChipType.Bus_32Bit,
+                _ => throw new Exception("Bus bit count not implemented")
 			};
 
 			string name = ChipTypeHelper.GetName(type);
@@ -361,7 +386,9 @@ namespace DLS.Game
 				PinBitCount.Bit1 => ChipType.BusTerminus_1Bit,
 				PinBitCount.Bit4 => ChipType.BusTerminus_4Bit,
 				PinBitCount.Bit8 => ChipType.BusTerminus_8Bit,
-				_ => throw new Exception("Bus bit count not implemented")
+                PinBitCount.Bit16 => ChipType.BusTerminus_16Bit,
+                PinBitCount.Bit32 => ChipType.BusTerminus_32Bit,
+                _ => throw new Exception("Bus bit count not implemented")
 			};
 
 			ChipDescription busOrigin = CreateBus(bitCount);
