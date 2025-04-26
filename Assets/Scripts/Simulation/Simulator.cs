@@ -215,14 +215,16 @@ namespace DLS.Simulation
 					break;
 				}
                 case ChipType.AdjsClock:
+
                     {
-                        bool high = stepsPerClockTransition != 0 && ((simulationFrame / stepsPerClockTransition) & 1) == 0;
+
+                        bool high = stepsPerClockTransition != 0 && ((simulationFrame / (stepsPerClockTransition*2)) & 1) == 0;
 						if (chip.InputPins[0].State.GetBit(0) == 1)
 						{
                             high = stepsPerClockTransition != 0 && ((simulationFrame / (stepsPerClockTransition/2) & 1)) == 0;
 							if (chip.InputPins[1].State.GetBit(0) == 1)
 							{
-                                high = stepsPerClockTransition != 0 && ((simulationFrame / (stepsPerClockTransition / 5) & 1)) == 0;
+                                high = stepsPerClockTransition != 0 && ((simulationFrame / (stepsPerClockTransition / 4) & 1)) == 0;
                             }
 
                             }
