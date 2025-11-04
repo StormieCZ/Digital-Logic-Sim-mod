@@ -9,10 +9,16 @@ namespace DLS.Description
 		TriStateBuffer,
 		Clock,
         AdjsClock,
+		RNG,
         Pulse,
 
-		// ---- Memory ----
-		dev_Ram_8Bit,
+        // ---- Websocket Chips ----
+
+        WebIN,
+		WebOUT,
+
+        // ---- Memory ----
+        dev_Ram_8Bit,
 		Rom_256x16,
 
 		// ---- Displays ----
@@ -20,6 +26,9 @@ namespace DLS.Description
 		DisplayRGB,
 		DisplayDot,
 		DisplayLED,
+
+		// ---- Audio ----
+		Speaker,
 
 		// ---- Merge / Split ----
 		Merge_1To4Bit,

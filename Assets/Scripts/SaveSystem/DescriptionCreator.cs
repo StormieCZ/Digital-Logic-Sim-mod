@@ -73,7 +73,10 @@ namespace DLS.SaveSystem
 				ChipType.Rom_256x16 => new uint[256],
 				ChipType.Key => new uint[] { 'K' },
 				ChipType.Pulse => new uint[] { 50, 0, 0 },
-				_ => ChipTypeHelper.IsBusType(type) ? new uint[2] : null
+                ChipType.WebIN => new uint[] { 0, 3000, 0, 0 },
+                ChipType.WebOUT => new uint[] { 0, 3050, 0, 0 },
+                ChipType.Speaker => new uint[] { 0, 0 },
+                _ => ChipTypeHelper.IsBusType(type) ? new uint[2] : null
 			};
 
 			return new SubChipDescription

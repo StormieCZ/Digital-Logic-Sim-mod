@@ -30,8 +30,14 @@ namespace DLS.Game
 				CreateNand(),
 				CreateTristateBuffer(),
 				CreateClock(),
+                CreateRNG(),
                 CreateAdjsClock(),
                 CreatePulse(),
+				// ---- Websocket Chips ----
+				CreateWebsocketIN(),
+				CreateWebsocketOUT(),
+				// ---- Audio ----
+				CreateSpeaker(),
 				// ---- Memory ----
 				dev_CreateRAM_8(),
 				CreateROM_8(),
@@ -142,6 +148,43 @@ namespace DLS.Game
 
 			return CreateBuiltinChipDescription(ChipType.Clock, size, col, null, outputPins);
 		}
+
+        static ChipDescription CreateWebsocketIN()
+        {
+            Vector2 size = new(GridHelper.SnapToGrid(2.5f), GridSize * 3.5f);
+            Color col = new(0.1f, 0.5f, 0.234f);
+            PinDescription[] outputPins = { CreatePinDescription("OUT", 0, PinBitCount.Bit8) };
+            PinDescription[] inputPins = { CreatePinDescription("ENABLE", 1) };
+
+            return CreateBuiltinChipDescription(ChipType.WebIN, size, col, inputPins, outputPins);
+        }
+
+        static ChipDescription CreateWebsocketOUT()
+        {
+            Vector2 size = new(GridHelper.SnapToGrid(2.5f), GridSize * 8.5f);
+            Color col = new(0.1f, 0.5f, 0.1f);
+            PinDescription[] inputPins = { CreatePinDescription("IN", 0, PinBitCount.Bit8), CreatePinDescription("ENABLE", 1) };
+
+            return CreateBuiltinChipDescription(ChipType.WebOUT, size, col, inputPins, null);
+        }
+
+        static ChipDescription CreateSpeaker()
+        {
+            Vector2 size = new(GridHelper.SnapToGrid(0.5f), GridSize * 3.5f);
+            Color col = new(0.3f, 0.4f, 0.4f);
+            PinDescription[] inputPins = { CreatePinDescription("Note", 0, PinBitCount.Bit8), CreatePinDescription("ENABLE", 1) };
+
+            return CreateBuiltinChipDescription(ChipType.Speaker, size, col, inputPins, null);
+        }
+
+        static ChipDescription CreateRNG()
+        {
+            Vector2 size = new(GridHelper.SnapToGrid(0.8f), GridSize * 3f);
+            Color col = new(0.05f, 0.05f, 0.05f);
+            PinDescription[] outputPins = { CreatePinDescription("OUT", 0) };
+            PinDescription[] inputPins = { CreatePinDescription("IN", 1)};
+            return CreateBuiltinChipDescription(ChipType.RNG, size, col, inputPins, outputPins);
+        }
 
         static ChipDescription CreateAdjsClock()
         {

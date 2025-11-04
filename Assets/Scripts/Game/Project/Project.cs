@@ -283,8 +283,15 @@ namespace DLS.Game
 			simChip.InternalState[0] = widthNew;
 		}
 
-		// Rom has been edited, so simulation must be updated
-		public void NotifyRomContentsEdited(SubChipInstance romChip)
+        public void NotifyPortChanged(SubChipInstance chip, uint portNew)
+        {
+            chip.InternalData[1] = portNew;
+            SimChip simChip = rootSimChip.GetSubChipFromID(chip.ID);
+            simChip.InternalState[1] = portNew;
+        }
+
+        // Rom has been edited, so simulation must be updated
+        public void NotifyRomContentsEdited(SubChipInstance romChip)
 		{
 			SimChip simChip = rootSimChip.GetSubChipFromID(romChip.ID);
 			simChip.UpdateInternalState(romChip.InternalData);

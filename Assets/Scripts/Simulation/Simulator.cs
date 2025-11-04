@@ -1,16 +1,38 @@
-using System;
-using System.Collections.Concurrent;
 using DLS.Description;
 using DLS.Game;
+using System.Collections.Concurrent;
 using UnityEngine;
 using Random = System.Random;
 
+using System;
+using NativeWebSocket;
 namespace DLS.Simulation
 {
-	public static class Simulator
+
+    // NEW: Add this enum
+    public enum SpeakerCommandType { Create, Destroy }
+
+    // NEW: Add this struct
+    public struct MainThreadSpeakerCommand
+    {
+        public SpeakerCommandType CommandType;
+        public uint SpeakerID;
+    }
+    public static class Simulator
 	{
-		public static readonly Random rng = new();
-		public static int stepsPerClockTransition;
+        // Dictionaries to hold WebSocket instances for each chip
+        // This allows multiple WebIN/WebOUT chips to exist
+        public static ConcurrentDictionary<SimChip, WebSocket> webInSockets = new();
+        public static ConcurrentDictionary<SimChip, WebSocket> webOutSockets = new();
+
+        // NEW: Add this queue for main thread commands
+        public static readonly ConcurrentQueue<MainThreadSpeakerCommand> SpeakerCommandQueue = new();
+
+        // NEW: Add this buffer for frequencies (from previous step)
+        public static readonly ConcurrentDictionary<uint, float> SpeakerFrequencyBuffer = new();
+
+        public static readonly Random rng = new();
+        public static int stepsPerClockTransition;
 		public static int simulationFrame;
 		static uint pcg_rngState;
 
@@ -196,24 +218,257 @@ namespace DLS.Simulation
 			return result < uint.MaxValue / 2;
 		}
 
+
 		static void ProcessBuiltinChip(SimChip chip)
 		{
+
 			switch (chip.ChipType)
 			{
 				// ---- Process Built-in chips ----
 				case ChipType.Nand:
-				{
-					uint andOp = chip.InputPins[0].State.GetRawBits() & chip.InputPins[1].State.GetRawBits();
-					uint nandOp = ~andOp & 1;
-					chip.OutputPins[0].State.SetBit(0, nandOp);
-					break;
-				}
+					{
+						uint andOp = chip.InputPins[0].State.GetRawBits() & chip.InputPins[1].State.GetRawBits();
+						uint nandOp = ~andOp & 1;
+						chip.OutputPins[0].State.SetBit(0, nandOp);
+						break;
+					}
 				case ChipType.Clock:
-				{
-					bool high = stepsPerClockTransition != 0 && ((simulationFrame / stepsPerClockTransition) & 1) == 0;
-					chip.OutputPins[0].State.SetBit(0, high ? PinState.LogicHigh : PinState.LogicLow);
-					break;
-				}
+					{
+						bool high = stepsPerClockTransition != 0 && ((simulationFrame / stepsPerClockTransition) & 1) == 0;
+						chip.OutputPins[0].State.SetBit(0, high ? PinState.LogicHigh : PinState.LogicLow);
+						break;
+					}
+
+				case ChipType.RNG:
+					{
+						if (chip.InputPins[0].State.GetBit(0) == PinState.LogicHigh)
+						{
+							bool high = RandomBool();
+							chip.OutputPins[0].State.SetBit(0, high ? PinState.LogicHigh : PinState.LogicLow);
+						}
+						break;
+					}
+
+                case ChipType.Speaker:
+                    {
+                        // --- Config ---
+                        // InternalState[0] = Speaker ID (must match the ID in the Unity script)
+                        // InputPins[0] = 8-bit MIDI Note (0-127)
+                        // InputPins[1] = 1-bit Gate (HIGH = play, LOW = off)
+                        // ----------------
+
+                        uint speakerID = chip.InternalState[0];
+                        uint midiNote = chip.InputPins[0].State.GetRawBits();
+                        bool gate = chip.InputPins[1].State.FirstBitHigh();
+
+                        float frequency = 0.0f;
+
+                        if (gate)
+                        {
+                            // Calculate frequency from MIDI note number
+                            // Formula: f = 440 * 2^((n - 69) / 12)
+                            // We use System.Math.Pow since UnityEngine is not available in this file
+                            frequency = (float)(440.0 * Math.Pow(2.0, (midiNote - 69.0) / 12.0));
+                            Debug.Log($"Gate is HIGH. Writing frequency: {frequency} for note {midiNote}");
+                        }
+
+                        // Write the frequency to the buffer for the Unity script to read
+                        SpeakerFrequencyBuffer[speakerID] = frequency;
+
+                        break;
+                    }
+
+                case ChipType.WebOUT:
+                    {
+                        // --- State Definitions ---
+                        // 0 = Disconnected
+                        // 1 = Connected
+                        // 2 = Connecting
+                        // -------------------------
+
+                        // Get the websocket for THIS chip, or null if it doesn't exist yet
+                        webOutSockets.TryGetValue(chip, out WebSocket websocket_out);
+
+                        // --- 1. Connection Logic ---
+                        if (chip.InternalState[0] == 0 && chip.InputPins[1].State.GetBit(0) == PinState.LogicHigh)
+                        {
+                            chip.InternalState[0] = 2; // Set state to "Connecting"
+                            Debug.Log("WebOUT State set to 2 (Connecting)...");
+
+                            if (websocket_out != null && websocket_out.State == WebSocketState.Open)
+                            {
+                                websocket_out.Close();
+                                Debug.Log("WebOUT already open! -> CLOSING");
+                                chip.InternalState[0] = 0; // Reset to disconnected
+                                return;
+                            }
+
+                            websocket_out = new WebSocket($"ws://localhost:{chip.InternalState[1]}");
+
+                            websocket_out.OnOpen += () =>
+                            {
+                                Debug.Log("WebOUT Connection open!");
+                                websocket_out.SendText("DLS - WebOUT Connection Initiated");
+                                chip.InternalState[0] = 1; // Set state to "Connected"
+                            };
+
+                            websocket_out.OnError += (e) =>
+                            {
+                                Debug.Log("WebOUT Error! " + e);
+                                chip.InternalState[0] = 0; // Set state back to "Disconnected"
+                                webOutSockets.TryRemove(chip, out _); // Clean up dictionary
+                            };
+
+                            websocket_out.OnClose += (e) =>
+                            {
+                                Debug.Log("WebOUT Connection closed!");
+                                chip.InternalState[0] = 0; // Set state back to "Disconnected"
+                                webOutSockets.TryRemove(chip, out _); // Clean up dictionary
+                            };
+
+                            websocket_out.OnMessage += (bytes) =>
+                            {
+                                var sb = new System.Text.StringBuilder(8);
+                                for (int i = 0; i < 8; i++)
+                                {
+                                    uint bitState = chip.InputPins[0].State.GetBit(7 - i);
+                                    sb.Append(bitState == PinState.LogicHigh ? '1' : '0');
+                                }
+                                websocket_out.SendText(sb.ToString());
+                            };
+
+                            // Store this websocket instance in the dictionary
+                            webOutSockets[chip] = websocket_out;
+                            websocket_out.Connect();
+                        }
+
+                        // --- 2. "Update" Logic (while connected) ---
+                        if (chip.InternalState[0] == 1) // Only run if "Connected"
+                        {
+                            if (websocket_out != null)
+                            {
+                                websocket_out.DispatchMessageQueue();
+                            }
+                        }
+
+                        // --- 3. Disconnection Logic ---
+                        if (chip.InputPins[1].State.GetBit(0) == PinState.LogicLow && (chip.InternalState[0] == 1 || chip.InternalState[0] == 2))
+                        {
+                            Debug.Log("WebOUT Disconnect signal received. Closing connection.");
+                            chip.InternalState[0] = 0; // Set state to "Disconnected"
+
+                            if (websocket_out != null)
+                            {
+                                websocket_out.Close();
+                                // No need to remove from dict here, OnClose event will handle it
+                            }
+                        }
+                        break;
+                    }
+
+
+                case ChipType.WebIN:
+                    {
+                        // --- State Definitions ---
+                        // 0 = Disconnected
+                        // 1 = Connected
+                        // 2 = Connecting
+                        // -------------------------
+
+                        // Get the websocket for THIS chip, or null if it doesn't exist yet
+                        webInSockets.TryGetValue(chip, out WebSocket websocket_in);
+
+                        // --- 1. Connection Logic ---
+                        if (chip.InternalState[0] == 0 && chip.InputPins[0].State.GetBit(0) == PinState.LogicHigh)
+                        {
+                            chip.InternalState[0] = 2;
+                            Debug.Log("State set to 2 (Connecting)...");
+
+                            if (websocket_in != null && websocket_in.State == WebSocketState.Open)
+                            {
+                                websocket_in.Close();
+                                Debug.Log("Websocket already open! -> CLOSING");
+                                chip.InternalState[0] = 0; // Reset to disconnected
+                                return;
+                            }
+
+                            websocket_in = new WebSocket($"ws://localhost:{chip.InternalState[1]}");
+
+                            websocket_in.OnOpen += () =>
+                            {
+                                Debug.Log("Connection open!");
+                                websocket_in.SendText("DLS - Connection Initiated");
+                                chip.InternalState[0] = 1; // Set state to "Connected"
+                            };
+
+                            websocket_in.OnError += (e) =>
+                            {
+                                Debug.Log("Error! " + e);
+                                chip.InternalState[0] = 0; // Set state back to "Disconnected"
+                                webInSockets.TryRemove(chip, out _); // Clean up dictionary
+                            };
+
+                            websocket_in.OnClose += (e) =>
+                            {
+                                Debug.Log("Connection closed!");
+                                chip.InternalState[0] = 0; // Set state back to "Disconnected"
+                                webInSockets.TryRemove(chip, out _); // Clean up dictionary
+                            };
+
+                            websocket_in.OnMessage += (bytes) =>
+                            {
+                                var message = System.Text.Encoding.UTF8.GetString(bytes).Trim();
+
+                                if (message.Length >= 8)
+                                {
+                                    // *** BIT ORDER FIX ***
+                                    // This now maps message[0] (bit 7) to chip bit 7, etc.
+                                    for (int i = 0; i < 8; i++)
+                                    {
+                                        bool high = message[i] == '1';
+                                        chip.OutputPins[0].State.SetBit(7 - i, high ? PinState.LogicHigh : PinState.LogicLow);
+                                    }
+                                }
+                            };
+
+                            // Store this websocket instance in the dictionary
+                            webInSockets[chip] = websocket_in;
+                            websocket_in.Connect();
+                        }
+
+                        // --- 2. "Update" Logic (while connected) ---
+                        if (chip.InternalState[0] == 1) // Only run if "Connected"
+                        {
+                            if (websocket_in != null)
+                            {
+                                websocket_in.DispatchMessageQueue();
+
+                                chip.InternalState[2]++;
+                                if (chip.InternalState[2] > 60)
+                                {
+                                    websocket_in.SendText("DLS - Ping");
+                                    chip.InternalState[2] = 0; // Reset the counter
+                                }
+                            }
+                        }
+
+                        // --- 3. Disconnection Logic ---
+                        if (chip.InputPins[0].State.GetBit(0) == PinState.LogicLow && (chip.InternalState[0] == 1 || chip.InternalState[0] == 2))
+                        {
+                            Debug.Log("Disconnect signal received. Closing connection.");
+                            chip.InternalState[0] = 0; // Set state to "Disconnected"
+                            chip.OutputPins[0].State.SetBit(0, PinState.LogicDisconnected);
+
+                            if (websocket_in != null)
+                            {
+                                websocket_in.Close();
+                                // No need to remove from dict here, OnClose event will handle it
+                            }
+                        }
+
+                        break;
+                    }
+
                 case ChipType.AdjsClock:
 
                     {
@@ -657,12 +912,50 @@ namespace DLS.Simulation
 					{
 						SimChip newSubChip = BuildSimChip(cmd.chipDesc, cmd.lib, cmd.subChipID, cmd.subChipInternalData);
 						cmd.modifyTarget.AddSubChip(newSubChip);
-					}
-					else if (cmd.type == SimModifyCommand.ModificationType.RemoveSubChip)
-					{
-						cmd.modifyTarget.RemoveSubChip(cmd.removeSubChipID);
-					}
-					else if (cmd.type == SimModifyCommand.ModificationType.AddConnection)
+
+                        if (newSubChip.ChipType == ChipType.Speaker)
+                        {
+                            uint speakerID = newSubChip.InternalState[0];
+
+                            // ADD THIS LINE
+                            Debug.Log($"SIMULATOR: Enqueued Create command for ID {speakerID}");
+
+                            SpeakerCommandQueue.Enqueue(new MainThreadSpeakerCommand { CommandType = SpeakerCommandType.Create, SpeakerID = speakerID });
+                        }
+                    }
+                    else if (cmd.type == SimModifyCommand.ModificationType.RemoveSubChip)
+                    {
+                        // --- MODIFIED ---
+                        // Find the chip *before* removing it to check its type
+                        SimChip chipToRemove = null;
+                        for (int i = 0; i < cmd.modifyTarget.SubChips.Length; i++)
+                        {
+                            // --- THIS IS THE FIX ---
+                            // The property is 'ID', not 'SubChipID'
+                            if (cmd.modifyTarget.SubChips[i].ID == cmd.removeSubChipID)
+                            {
+                                chipToRemove = cmd.modifyTarget.SubChips[i];
+                                break;
+                            }
+                        }
+
+                        // If we found the chip and it's a speaker, enqueue a destroy command
+                        if (chipToRemove != null && chipToRemove.ChipType == ChipType.Speaker)
+                        {
+                            // It's a speaker! Tell the main thread to destroy it.
+                            uint speakerID = chipToRemove.InternalState[0];
+                            Debug.Log($"SIMULATOR: Enqueued Destroy command for ID {speakerID}");
+                            SpeakerCommandQueue.Enqueue(new MainThreadSpeakerCommand { CommandType = SpeakerCommandType.Destroy, SpeakerID = speakerID });
+
+                            // Clean up the frequency buffer
+                            SpeakerFrequencyBuffer.TryRemove(speakerID, out _);
+                        }
+
+                        // Now, actually remove the chip from the sim
+                        cmd.modifyTarget.RemoveSubChip(cmd.removeSubChipID);
+                        // -----------------
+                    }
+                    else if (cmd.type == SimModifyCommand.ModificationType.AddConnection)
 					{
 						cmd.modifyTarget.AddConnection(cmd.sourcePinAddress, cmd.targetPinAddress);
 					}
@@ -678,6 +971,7 @@ namespace DLS.Simulation
 					{
 						cmd.modifyTarget.RemovePin(cmd.removePinID);
 					}
+
 				}
 			}
 		}

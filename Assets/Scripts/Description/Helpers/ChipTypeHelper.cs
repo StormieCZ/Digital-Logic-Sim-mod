@@ -13,8 +13,14 @@ namespace DLS.Description
 			{ ChipType.Nand, "NAND" },
 			{ ChipType.Clock, "CLOCK" },
             { ChipType.AdjsClock, "Hz-Clock" },
+            { ChipType.RNG, "RPG" },
             { ChipType.Pulse, "PULSE" },
 			{ ChipType.TriStateBuffer, "3-STATE BUFFER" },
+
+			//---- Websocket Chips ----
+			{ ChipType.WebIN, "WS-IN" },
+            { ChipType.WebOUT, "WS-OUT" },
+
 			// ---- Memory ----
 			{ ChipType.dev_Ram_8Bit, "dev.RAM-8" },
 			{ ChipType.Rom_256x16, $"ROM 256{mulSymbol}16" },
@@ -36,7 +42,12 @@ namespace DLS.Description
 			{ ChipType.SevenSegmentDisplay, "7-SEGMENT" },
 			{ ChipType.DisplayLED, "LED" },
 
+
+
 			// ---- Not really chips (but convenient to treat them as such anyway) ----
+
+			// ---- Audio ----
+			{ ChipType.Speaker, "Speaker" },
 
 			// ---- Inputs/Outputs ----
 			{ ChipType.In_1Bit, "IN-1" },

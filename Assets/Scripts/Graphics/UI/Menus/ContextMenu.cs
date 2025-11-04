@@ -74,8 +74,22 @@ namespace DLS.Graphics
 			deleteEntry
 		};
 
+        static readonly MenuEntry[] entries_builtinWebSocketIN =
+{
+            new(Format("PORT"), OpenPortEditMenu, CanEditCurrentChip),
+            labelChipEntry,
+            deleteEntry
+        };
 
-		static readonly MenuEntry[] entries_subChipOutput = pinColEntries;
+        static readonly MenuEntry[] entries_builtinWebSocketOUT =
+{
+            new(Format("PORT"), OpenPortEditMenu, CanEditCurrentChip),
+            labelChipEntry,
+            deleteEntry
+        };
+
+
+        static readonly MenuEntry[] entries_subChipOutput = pinColEntries;
 
 		static readonly MenuEntry[] entires_inputDevPin = new[]
 		{
@@ -178,7 +192,9 @@ namespace DLS.Graphics
 							if (subChip.ChipType is ChipType.Key) activeContextMenuEntries = entries_builtinKeySubchip;
 							else if (ChipTypeHelper.IsRomType(subChip.ChipType)) activeContextMenuEntries = entries_builtinRomSubchip;
 							else if (subChip.ChipType is ChipType.Pulse) activeContextMenuEntries = entries_builtinPulseChip;
-							else if (ChipTypeHelper.IsBusType(subChip.ChipType)) activeContextMenuEntries = entries_builtinBus;
+                            else if (subChip.ChipType is ChipType.WebIN) activeContextMenuEntries = entries_builtinWebSocketIN;
+                            else if (subChip.ChipType is ChipType.WebOUT) activeContextMenuEntries = entries_builtinWebSocketOUT;
+                            else if (ChipTypeHelper.IsBusType(subChip.ChipType)) activeContextMenuEntries = entries_builtinBus;
 							else activeContextMenuEntries = entries_builtinSubchip;
 						}
 
@@ -384,7 +400,9 @@ namespace DLS.Graphics
 		
 		static void OpenPulseEditMenu() => UIDrawer.SetActiveMenu(UIDrawer.MenuType.PulseEdit);
 
-		static bool CanEditCurrentChip() => Project.ActiveProject.CanEditViewedChip;
+        static void OpenPortEditMenu() => UIDrawer.SetActiveMenu(UIDrawer.MenuType.PortEdit);
+
+        static bool CanEditCurrentChip() => Project.ActiveProject.CanEditViewedChip;
 
 		static bool CanEditWire() => CanEditCurrentChip();
 

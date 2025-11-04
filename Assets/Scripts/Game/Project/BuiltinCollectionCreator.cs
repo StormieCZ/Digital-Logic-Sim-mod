@@ -21,12 +21,18 @@ namespace DLS.Game
 				CreateChipCollection("BASIC",
 					ChipType.Nand,
 					ChipType.Clock,
+                    ChipType.RNG,
                     ChipType.AdjsClock,
                     ChipType.Pulse,
 					ChipType.Key,
 					ChipType.TriStateBuffer
 				),
-				CreateChipCollection("IN/OUT",
+
+				CreateChipCollection("WebSockets",
+                    ChipType.WebIN,
+					ChipType.WebOUT
+                ),
+                CreateChipCollection("IN/OUT",
 					ChipType.In_1Bit,
 					ChipType.In_4Bit,
 					ChipType.In_8Bit,
@@ -64,7 +70,10 @@ namespace DLS.Game
 					ChipType.DisplayRGB,
 					ChipType.DisplayLED
 				),
-				CreateChipCollection("MEMORY",
+                CreateChipCollection("AUDIO",
+					ChipType.Speaker
+                ),
+                CreateChipCollection("MEMORY",
 					ChipType.Rom_256x16
 				)
 			};

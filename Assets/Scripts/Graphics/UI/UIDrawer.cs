@@ -18,7 +18,8 @@ namespace DLS.Graphics
 			RebindKeyChip,
 			RomEdit,
 			PulseEdit,
-			UnsavedChanges,
+            PortEdit,
+            UnsavedChanges,
 			Search,
 			ChipLabelPopup
 		}
@@ -68,7 +69,8 @@ namespace DLS.Graphics
 			else if (menuToDraw == MenuType.Search) SearchPopup.DrawMenu();
 			else if (menuToDraw == MenuType.ChipLabelPopup) ChipLabelMenu.DrawMenu();
 			else if (menuToDraw == MenuType.PulseEdit) PulseEditMenu.DrawMenu();
-			else
+            else if (menuToDraw == MenuType.PortEdit) PortEditMenu.DrawMenu();
+            else
 			{
 				bool showSimPausedBanner = project.simPaused;
 				if (showSimPausedBanner) SimPausedUI.DrawPausedBanner();
@@ -98,8 +100,9 @@ namespace DLS.Graphics
 				else if (ActiveMenu == MenuType.Search) SearchPopup.OnMenuOpened();
 				else if (ActiveMenu == MenuType.ChipLabelPopup) ChipLabelMenu.OnMenuOpened();
 				else if (ActiveMenu == MenuType.PulseEdit) PulseEditMenu.OnMenuOpened();
+                else if (ActiveMenu == MenuType.PortEdit) PortEditMenu.OnMenuOpened();
 
-				if (InInputBlockingMenu() && Project.ActiveProject != null && Project.ActiveProject.controller != null)
+                if (InInputBlockingMenu() && Project.ActiveProject != null && Project.ActiveProject.controller != null)
 				{
 					Project.ActiveProject.controller.CancelEverything();
 				}
