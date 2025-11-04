@@ -88,6 +88,12 @@ namespace DLS.Graphics
             deleteEntry
         };
 
+        static readonly MenuEntry[] entries_builtinScriptID =
+{
+            new(Format("SCRIPTID"), OpenScriptEditMenu,  CanEditCurrentChip),
+            labelChipEntry,
+            deleteEntry
+        };
 
         static readonly MenuEntry[] entries_subChipOutput = pinColEntries;
 
@@ -194,6 +200,7 @@ namespace DLS.Graphics
 							else if (subChip.ChipType is ChipType.Pulse) activeContextMenuEntries = entries_builtinPulseChip;
                             else if (subChip.ChipType is ChipType.WebIN) activeContextMenuEntries = entries_builtinWebSocketIN;
                             else if (subChip.ChipType is ChipType.WebOUT) activeContextMenuEntries = entries_builtinWebSocketOUT;
+                            else if (subChip.ChipType is ChipType.Script) activeContextMenuEntries = entries_builtinScriptID;
                             else if (ChipTypeHelper.IsBusType(subChip.ChipType)) activeContextMenuEntries = entries_builtinBus;
 							else activeContextMenuEntries = entries_builtinSubchip;
 						}
@@ -401,6 +408,8 @@ namespace DLS.Graphics
 		static void OpenPulseEditMenu() => UIDrawer.SetActiveMenu(UIDrawer.MenuType.PulseEdit);
 
         static void OpenPortEditMenu() => UIDrawer.SetActiveMenu(UIDrawer.MenuType.PortEdit);
+
+        static void OpenScriptEditMenu() => UIDrawer.SetActiveMenu(UIDrawer.MenuType.ScriptEdit);
 
         static bool CanEditCurrentChip() => Project.ActiveProject.CanEditViewedChip;
 

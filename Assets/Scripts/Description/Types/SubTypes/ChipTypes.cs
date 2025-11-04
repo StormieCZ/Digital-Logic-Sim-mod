@@ -30,6 +30,9 @@ namespace DLS.Description
 		// ---- Audio ----
 		Speaker,
 
+		// ---- Code ----
+		Script,
+
 		// ---- Merge / Split ----
 		Merge_1To4Bit,
 		Merge_1To8Bit,

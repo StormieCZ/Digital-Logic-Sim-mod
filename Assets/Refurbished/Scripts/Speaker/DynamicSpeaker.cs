@@ -24,13 +24,16 @@ public class DynamicSpeaker : MonoBehaviour
     void OnAudioFilterRead(float[] data, int channels)
     {
         // 1. Try to get the frequency from the simulator's buffer
-        // If the key doesn't exist, it will default to 0.0f
-        Simulator.SpeakerFrequencyBuffer.TryGetValue(speakerID, out currentFrequency);
+        Simulator.SpeakerFrequencyBuffer.TryGetValue(speakerID, out float currentFrequency);
 
-
-        // Debug
-        //if (currentFrequency > 0) Debug.Log("Playing frequency: " + currentFrequency);
-
+        // --- THIS IS THE FIX ---
+        // If the frequency is basically zero, reset the phase.
+        // This stops a "DC offset" (the hum/pop) when the note stops.
+        if (currentFrequency < 8.3f)
+        {
+            return;
+        }
+        // ---------------------
 
         // 2. Calculate how much to increment the phase for each sample
         float phaseIncrement = (2.0f * Mathf.PI * currentFrequency) / samplingRate;

@@ -1,0 +1,4 @@
+repository "DSL Refurbished/Digital Logic Simulator - Refurbished@7971817576262@cloud"
+  path "/"
+    br "/main"
+    co "/main"

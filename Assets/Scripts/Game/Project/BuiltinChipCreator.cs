@@ -38,6 +38,8 @@ namespace DLS.Game
 				CreateWebsocketOUT(),
 				// ---- Audio ----
 				CreateSpeaker(),
+				// ---- Code ----
+				CreateScript(),
 				// ---- Memory ----
 				dev_CreateRAM_8(),
 				CreateROM_8(),
@@ -170,9 +172,9 @@ namespace DLS.Game
 
         static ChipDescription CreateSpeaker()
         {
-            Vector2 size = new(GridHelper.SnapToGrid(0.5f), GridSize * 3.5f);
+            Vector2 size = new(GridHelper.SnapToGrid(1f), GridSize * 6.5f);
             Color col = new(0.3f, 0.4f, 0.4f);
-            PinDescription[] inputPins = { CreatePinDescription("Note", 0, PinBitCount.Bit8), CreatePinDescription("ENABLE", 1) };
+            PinDescription[] inputPins = { CreatePinDescription("Frequency", 0, PinBitCount.Bit8), CreatePinDescription("ENABLE", 1) };
 
             return CreateBuiltinChipDescription(ChipType.Speaker, size, col, inputPins, null);
         }
@@ -186,12 +188,31 @@ namespace DLS.Game
             return CreateBuiltinChipDescription(ChipType.RNG, size, col, inputPins, outputPins);
         }
 
+        static ChipDescription CreateScript()
+        {
+            Vector2 size = new(GridHelper.SnapToGrid(1f), GridSize * 18f);
+            Color col = new(0.25f, 0.15f, 0.15f);
+            PinDescription[] outputPins = {
+                CreatePinDescription("OUT 0", 4, PinBitCount.Bit8),
+                CreatePinDescription("OUT 1", 5, PinBitCount.Bit8),
+                CreatePinDescription("OUT 2", 6, PinBitCount.Bit8),
+                CreatePinDescription("OUT 3", 7, PinBitCount.Bit8)
+            };
+            PinDescription[] inputPins = {
+				CreatePinDescription("IN 0", 0, PinBitCount.Bit8),
+                CreatePinDescription("IN 1", 1, PinBitCount.Bit8),
+                CreatePinDescription("IN 2", 2, PinBitCount.Bit8),
+				CreatePinDescription("IN 3", 3, PinBitCount.Bit8)
+            };
+            return CreateBuiltinChipDescription(ChipType.Script, size, col, inputPins, outputPins);
+        }
+
         static ChipDescription CreateAdjsClock()
         {
-            Vector2 size = new(GridHelper.SnapToGrid(2.3f), GridSize *5f);
+            Vector2 size = new(GridHelper.SnapToGrid(1.5f), GridSize *3f);
             Color col = new(0.1f, 0.2f, 0.2f);
             PinDescription[] outputPins = { CreatePinDescription("CLK", 0) };
-            PinDescription[] inputPins = { CreatePinDescription("Freq0", 1), CreatePinDescription("Freq1", 2) };
+            PinDescription[] inputPins = { CreatePinDescription("Speed", 1, PinBitCount.Bit4) };
             return CreateBuiltinChipDescription(ChipType.AdjsClock, size, col, inputPins, outputPins);
         }
 

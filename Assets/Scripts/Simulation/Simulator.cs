@@ -2,6 +2,8 @@ using DLS.Description;
 using DLS.Game;
 using System.Collections.Concurrent;
 using UnityEngine;
+using Jint;
+using Jint.Native;
 using Random = System.Random;
 
 using System;
@@ -30,6 +32,20 @@ namespace DLS.Simulation
 
         // NEW: Add this buffer for frequencies (from previous step)
         public static readonly ConcurrentDictionary<uint, float> SpeakerFrequencyBuffer = new();
+
+        // ... (your other static vars like SpeakerFrequencyBuffer) ...
+
+        // --- NEW: Speaker ID Pool ---
+        // This queue holds IDs that were used but are now free (e.g., from a deleted chip)
+        private static readonly ConcurrentQueue<uint> availableSpeakerIDs = new ConcurrentQueue<uint>();
+        // This is the "high-water mark" for new IDs, if the available pool is empty
+        private static uint nextSpeakerID = 0;
+        // Lock to make sure we don't assign the same ID twice
+        private static readonly object speakerIDLock = new object();
+        // --------------------------
+
+
+        public static readonly ConcurrentDictionary<uint, Engine> ScriptEngines = new ConcurrentDictionary<uint, Engine>();
 
         public static readonly Random rng = new();
         public static int stepsPerClockTransition;
@@ -248,7 +264,70 @@ namespace DLS.Simulation
 						}
 						break;
 					}
+                case ChipType.Script:
+                    {
+                        // InternalState[0] = Script ID (e.g., 0 for "script_0.js")
+                        // All other InternalState[1...n] is free for the script to use
+                        uint scriptID = chip.InternalState[0];
 
+                        // Try to get the cached engine from the manager
+                        if (Simulator.ScriptEngines.TryGetValue(scriptID, out Jint.Engine engine))
+                        {
+                            try
+                            {
+                                // --- 1. Pass Inputs TO JavaScript ---
+                                // We create simple arrays of uints
+                                var jsInputs = new object[chip.InputPins.Length];
+                                for (int i = 0; i < chip.InputPins.Length; i++)
+                                {
+                                    jsInputs[i] = chip.InputPins[i].State.GetRawBits();
+                                }
+                                engine.SetValue("inputs", jsInputs);
+
+                                // Also pass the chip's internal state as "memory"
+                                var jsMemory = new object[chip.InternalState.Length];
+                                for (int i = 0; i < chip.InternalState.Length; i++)
+                                {
+                                    jsMemory[i] = chip.InternalState[i];
+                                }
+                                engine.SetValue("memory", jsMemory);
+
+
+                                // --- 2. Execute the "update()" function ---
+                                engine.Invoke("update");
+
+
+                                // --- 3. Get Outputs FROM JavaScript ---
+                                // We retrieve the 'outputs' array from the script's global scope
+                                var jsOutputs = engine.GetValue("outputs").AsArray();
+                                int outputPinCount = System.Math.Min(chip.OutputPins.Length, (int)jsOutputs.Length);
+
+                                for (int i = 0; i < outputPinCount; i++)
+                                {
+                                    // Convert the JS number back to a uint
+                                    chip.OutputPins[i].State.SetAllBits_NoneDisconnected((uint)jsOutputs[i].AsNumber());
+                                }
+
+                                // --- 4. Get Memory changes FROM JavaScript ---
+                                var jsMemoryOut = engine.GetValue("memory").AsArray();
+                                int memCount = System.Math.Min(chip.InternalState.Length, (int)jsMemoryOut.Length);
+                                for (int i = 0; i < memCount; i++)
+                                {
+                                    chip.InternalState[i] = (uint)jsMemoryOut[i].AsNumber();
+                                }
+                            }
+                            catch (System.Exception e)
+                            {
+                                // Log an error but don't crash the sim
+                                Debug.Log($"Script ID {scriptID} error: {e.Message}");
+                            }
+                        }
+                        else
+                        {
+                            // Engine not found (script failed to load?)
+                        }
+                        break;
+                    }
                 case ChipType.Speaker:
                     {
                         // --- Config ---
@@ -263,13 +342,13 @@ namespace DLS.Simulation
 
                         float frequency = 0.0f;
 
-                        if (gate)
+                        if (gate && midiNote > 0)
                         {
                             // Calculate frequency from MIDI note number
                             // Formula: f = 440 * 2^((n - 69) / 12)
                             // We use System.Math.Pow since UnityEngine is not available in this file
                             frequency = (float)(440.0 * Math.Pow(2.0, (midiNote - 69.0) / 12.0));
-                            Debug.Log($"Gate is HIGH. Writing frequency: {frequency} for note {midiNote}");
+                            //Debug.Log($"Gate is HIGH. Writing frequency: {frequency} for note {midiNote}"); // For Debug purposes
                         }
 
                         // Write the frequency to the buffer for the Unity script to read
@@ -472,20 +551,17 @@ namespace DLS.Simulation
                 case ChipType.AdjsClock:
 
                     {
-
-                        bool high = stepsPerClockTransition != 0 && ((simulationFrame / (stepsPerClockTransition*2)) & 1) == 0;
-						if (chip.InputPins[0].State.GetBit(0) == 1)
+                        bool high = stepsPerClockTransition != 0 && ((simulationFrame / (stepsPerClockTransition * 2)) & 1) == 0;
+                        uint divider = chip.InputPins[0].State.GetRawBits() + 1;
+                        try
 						{
-                            high = stepsPerClockTransition != 0 && ((simulationFrame / (stepsPerClockTransition/2) & 1)) == 0;
-							if (chip.InputPins[1].State.GetBit(0) == 1)
-							{
-                                high = stepsPerClockTransition != 0 && ((simulationFrame / (stepsPerClockTransition / 4) & 1)) == 0;
-                            }
+                            high = stepsPerClockTransition != 0 && ((simulationFrame / (stepsPerClockTransition / divider)) & 1) == 0;
 
-                            }
-						else if (chip.InputPins[1].State.GetBit(0) == 1)
+                        }
+
+						catch
 						{
-                            high = stepsPerClockTransition != 0 && ((simulationFrame / (stepsPerClockTransition / 3) & 1)) == 0;
+                            high = stepsPerClockTransition != 0 && ((simulationFrame / (stepsPerClockTransition * 2)) & 1) == 0;
                         }
                         chip.OutputPins[0].State.SetBit(0, high ? PinState.LogicHigh : PinState.LogicLow);
                         break;
@@ -908,43 +984,71 @@ namespace DLS.Simulation
 
 				if (modificationQueue.TryDequeue(out SimModifyCommand cmd))
 				{
-					if (cmd.type == SimModifyCommand.ModificationType.AddSubchip)
-					{
-						SimChip newSubChip = BuildSimChip(cmd.chipDesc, cmd.lib, cmd.subChipID, cmd.subChipInternalData);
-						cmd.modifyTarget.AddSubChip(newSubChip);
+                    if (cmd.type == SimModifyCommand.ModificationType.AddSubchip)
+                    {
+                        SimChip newSubChip = BuildSimChip(cmd.chipDesc, cmd.lib, cmd.subChipID, cmd.subChipInternalData);
+                        cmd.modifyTarget.AddSubChip(newSubChip);
 
+                        // --- MODIFIED ---
                         if (newSubChip.ChipType == ChipType.Speaker)
                         {
-                            uint speakerID = newSubChip.InternalState[0];
+                            uint assignedID;
+                            // Lock to ensure thread-safety
+                            lock (speakerIDLock)
+                            {
+                                if (availableSpeakerIDs.TryDequeue(out uint recycledID))
+                                {
+                                    // We found a recycled ID, let's use it
+                                    assignedID = recycledID;
+                                }
+                                else
+                                {
+                                    // No recycled IDs, use the high-water mark and increment it
+                                    assignedID = nextSpeakerID;
+                                    nextSpeakerID++;
+                                }
+                            }
 
-                            // ADD THIS LINE
-                            Debug.Log($"SIMULATOR: Enqueued Create command for ID {speakerID}");
+                            // --- THIS IS THE KEY ---
+                            // The simulation *assigns* the ID to the chip.
+                            // The user no longer needs to set this in the editor.
+                            newSubChip.InternalState[0] = assignedID;
 
-                            SpeakerCommandQueue.Enqueue(new MainThreadSpeakerCommand { CommandType = SpeakerCommandType.Create, SpeakerID = speakerID });
+                            Debug.Log($"SIMULATOR: Speaker chip created. Assigning ID {assignedID}.");
+
+                            // Now, tell the main thread to create the speaker object
+                            SpeakerCommandQueue.Enqueue(new MainThreadSpeakerCommand { CommandType = SpeakerCommandType.Create, SpeakerID = assignedID });
                         }
+                        // -----------
                     }
                     else if (cmd.type == SimModifyCommand.ModificationType.RemoveSubChip)
                     {
-                        // --- MODIFIED ---
-                        // Find the chip *before* removing it to check its type
+                        // Find the chip *before* removing it
                         SimChip chipToRemove = null;
                         for (int i = 0; i < cmd.modifyTarget.SubChips.Length; i++)
                         {
-                            // --- THIS IS THE FIX ---
-                            // The property is 'ID', not 'SubChipID'
-                            if (cmd.modifyTarget.SubChips[i].ID == cmd.removeSubChipID)
+                            if (cmd.modifyTarget.SubChips[i].ID == cmd.removeSubChipID) // Using .ID from last fix
                             {
                                 chipToRemove = cmd.modifyTarget.SubChips[i];
                                 break;
                             }
                         }
 
-                        // If we found the chip and it's a speaker, enqueue a destroy command
                         if (chipToRemove != null && chipToRemove.ChipType == ChipType.Speaker)
                         {
-                            // It's a speaker! Tell the main thread to destroy it.
+                            // It's a speaker! Get its assigned ID
                             uint speakerID = chipToRemove.InternalState[0];
-                            Debug.Log($"SIMULATOR: Enqueued Destroy command for ID {speakerID}");
+
+                            Debug.Log($"SIMULATOR: Destroying speaker. Returning ID {speakerID} to pool.");
+
+                            // --- NEW: Return the ID to the pool ---
+                            lock (speakerIDLock)
+                            {
+                                availableSpeakerIDs.Enqueue(speakerID);
+                            }
+                            // ------------------------------------
+
+                            // Tell the main thread to destroy the speaker object
                             SpeakerCommandQueue.Enqueue(new MainThreadSpeakerCommand { CommandType = SpeakerCommandType.Destroy, SpeakerID = speakerID });
 
                             // Clean up the frequency buffer
@@ -953,7 +1057,6 @@ namespace DLS.Simulation
 
                         // Now, actually remove the chip from the sim
                         cmd.modifyTarget.RemoveSubChip(cmd.removeSubChipID);
-                        // -----------------
                     }
                     else if (cmd.type == SimModifyCommand.ModificationType.AddConnection)
 					{

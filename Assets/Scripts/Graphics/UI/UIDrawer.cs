@@ -19,6 +19,7 @@ namespace DLS.Graphics
 			RomEdit,
 			PulseEdit,
             PortEdit,
+			ScriptEdit,
             UnsavedChanges,
 			Search,
 			ChipLabelPopup
@@ -70,6 +71,7 @@ namespace DLS.Graphics
 			else if (menuToDraw == MenuType.ChipLabelPopup) ChipLabelMenu.DrawMenu();
 			else if (menuToDraw == MenuType.PulseEdit) PulseEditMenu.DrawMenu();
             else if (menuToDraw == MenuType.PortEdit) PortEditMenu.DrawMenu();
+            else if (menuToDraw == MenuType.ScriptEdit) ScriptChangeMenu.DrawMenu();
             else
 			{
 				bool showSimPausedBanner = project.simPaused;

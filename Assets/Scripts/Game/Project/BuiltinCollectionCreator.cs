@@ -75,7 +75,11 @@ namespace DLS.Game
                 ),
                 CreateChipCollection("MEMORY",
 					ChipType.Rom_256x16
-				)
+				),
+				//CreateChipCollection("CODE",
+				//	ChipType.Script
+				//)
+				
 			};
 		}
 

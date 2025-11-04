@@ -285,9 +285,38 @@ namespace DLS.Game
 
         public void NotifyPortChanged(SubChipInstance chip, uint portNew)
         {
+            // 1. Update saved data
             chip.InternalData[1] = portNew;
-            SimChip simChip = rootSimChip.GetSubChipFromID(chip.ID);
-            simChip.InternalState[1] = portNew;
+
+            // 2. Only update the live sim if it's running
+            if (rootSimChip != null)
+            {
+                SimChip simChip = rootSimChip.GetSubChipFromID(chip.ID);
+                if (simChip != null)
+                {
+                    simChip.InternalState[1] = portNew;
+                }
+            }
+        }
+
+        public void NotifyScriptChanged(SubChipInstance chip, uint scriptID)
+        {
+            // 1. Update saved data
+            chip.InternalData[0] = scriptID;
+
+            // 2. Only update the live sim if it's running
+            if (rootSimChip != null)
+            {
+                // 3. Find the live chip
+                SimChip simChip = rootSimChip.GetSubChipFromID(chip.ID);
+
+                // 4. Check if the chip was found
+                if (simChip != null)
+                {
+                    // 5. Update the live chip's state
+                    simChip.InternalState[0] = scriptID;
+                }
+            }
         }
 
         // Rom has been edited, so simulation must be updated

@@ -12,8 +12,9 @@ namespace DLS.Description
 			// ---- Basic Chips ----
 			{ ChipType.Nand, "NAND" },
 			{ ChipType.Clock, "CLOCK" },
-            { ChipType.AdjsClock, "Hz-Clock" },
+            { ChipType.AdjsClock, "CLOCK+" },
             { ChipType.RNG, "RPG" },
+
             { ChipType.Pulse, "PULSE" },
 			{ ChipType.TriStateBuffer, "3-STATE BUFFER" },
 
@@ -41,6 +42,9 @@ namespace DLS.Description
 			{ ChipType.DisplayDot, "DOT DISPLAY" },
 			{ ChipType.SevenSegmentDisplay, "7-SEGMENT" },
 			{ ChipType.DisplayLED, "LED" },
+
+			// ---- Code ----
+			{ ChipType.Script, "Java Script" },
 
 
 

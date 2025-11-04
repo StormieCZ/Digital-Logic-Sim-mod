@@ -76,6 +76,7 @@ namespace DLS.SaveSystem
                 ChipType.WebIN => new uint[] { 0, 3000, 0, 0 },
                 ChipType.WebOUT => new uint[] { 0, 3050, 0, 0 },
                 ChipType.Speaker => new uint[] { 0, 0 },
+                ChipType.Script => new uint[256],
                 _ => ChipTypeHelper.IsBusType(type) ? new uint[2] : null
 			};
 
