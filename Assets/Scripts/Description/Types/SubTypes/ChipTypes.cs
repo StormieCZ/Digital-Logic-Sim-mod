@@ -14,8 +14,7 @@ namespace DLS.Description
 
         // ---- Websocket Chips ----
 
-        WebIN,
-		WebOUT,
+        WebClient,
 
         // ---- Memory ----
         dev_Ram_8Bit,

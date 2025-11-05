@@ -24,8 +24,8 @@ namespace DLS.Simulation
 	{
         // Dictionaries to hold WebSocket instances for each chip
         // This allows multiple WebIN/WebOUT chips to exist
-        public static ConcurrentDictionary<SimChip, WebSocket> webInSockets = new();
-        public static ConcurrentDictionary<SimChip, WebSocket> webOutSockets = new();
+        // This single dictionary will hold all combined client connections
+        public static ConcurrentDictionary<SimChip, WebSocket> webClientSockets = new();
 
         // NEW: Add this queue for main thread commands
         public static readonly ConcurrentQueue<MainThreadSpeakerCommand> SpeakerCommandQueue = new();
@@ -357,7 +357,7 @@ namespace DLS.Simulation
                         break;
                     }
 
-                case ChipType.WebOUT:
+                case ChipType.WebClient:
                     {
                         // --- State Definitions ---
                         // 0 = Disconnected
@@ -365,183 +365,123 @@ namespace DLS.Simulation
                         // 2 = Connecting
                         // -------------------------
 
-                        // Get the websocket for THIS chip, or null if it doesn't exist yet
-                        webOutSockets.TryGetValue(chip, out WebSocket websocket_out);
+                        // --- Pin Definitions ---
+                        // InputPins[0] (1-bit): Connect/Disconnect Signal (From WebIN)
+                        // InputPins[1] (8-bit): Data to Send (From WebOUT)
+                        // OutputPins[0] (8-bit): Data Received (From WebIN)
+                        // -----------------------
+
+                        // --- Internal State ---
+                        // InternalState[0]: Connection State
+                        // InternalState[1]: Port
+                        // InternalState[2]: Send Throttle Counter
+                        // ----------------------
+
+                        // Get the websocket for THIS chip from our new dictionary
+                        webClientSockets.TryGetValue(chip, out WebSocket websocket_client);
 
                         // --- 1. Connection Logic ---
-                        if (chip.InternalState[0] == 0 && chip.InputPins[1].State.GetBit(0) == PinState.LogicHigh)
-                        {
-                            chip.InternalState[0] = 2; // Set state to "Connecting"
-                            Debug.Log("WebOUT State set to 2 (Connecting)...");
-
-                            if (websocket_out != null && websocket_out.State == WebSocketState.Open)
-                            {
-                                websocket_out.Close();
-                                Debug.Log("WebOUT already open! -> CLOSING");
-                                chip.InternalState[0] = 0; // Reset to disconnected
-                                return;
-                            }
-
-                            websocket_out = new WebSocket($"ws://localhost:{chip.InternalState[1]}");
-
-                            websocket_out.OnOpen += () =>
-                            {
-                                Debug.Log("WebOUT Connection open!");
-                                websocket_out.SendText("DLS - WebOUT Connection Initiated");
-                                chip.InternalState[0] = 1; // Set state to "Connected"
-                            };
-
-                            websocket_out.OnError += (e) =>
-                            {
-                                Debug.Log("WebOUT Error! " + e);
-                                chip.InternalState[0] = 0; // Set state back to "Disconnected"
-                                webOutSockets.TryRemove(chip, out _); // Clean up dictionary
-                            };
-
-                            websocket_out.OnClose += (e) =>
-                            {
-                                Debug.Log("WebOUT Connection closed!");
-                                chip.InternalState[0] = 0; // Set state back to "Disconnected"
-                                webOutSockets.TryRemove(chip, out _); // Clean up dictionary
-                            };
-
-                            websocket_out.OnMessage += (bytes) =>
-                            {
-                                var sb = new System.Text.StringBuilder(8);
-                                for (int i = 0; i < 8; i++)
-                                {
-                                    uint bitState = chip.InputPins[0].State.GetBit(7 - i);
-                                    sb.Append(bitState == PinState.LogicHigh ? '1' : '0');
-                                }
-                                websocket_out.SendText(sb.ToString());
-                            };
-
-                            // Store this websocket instance in the dictionary
-                            webOutSockets[chip] = websocket_out;
-                            websocket_out.Connect();
-                        }
-
-                        // --- 2. "Update" Logic (while connected) ---
-                        if (chip.InternalState[0] == 1) // Only run if "Connected"
-                        {
-                            if (websocket_out != null)
-                            {
-                                websocket_out.DispatchMessageQueue();
-                            }
-                        }
-
-                        // --- 3. Disconnection Logic ---
-                        if (chip.InputPins[1].State.GetBit(0) == PinState.LogicLow && (chip.InternalState[0] == 1 || chip.InternalState[0] == 2))
-                        {
-                            Debug.Log("WebOUT Disconnect signal received. Closing connection.");
-                            chip.InternalState[0] = 0; // Set state to "Disconnected"
-
-                            if (websocket_out != null)
-                            {
-                                websocket_out.Close();
-                                // No need to remove from dict here, OnClose event will handle it
-                            }
-                        }
-                        break;
-                    }
-
-
-                case ChipType.WebIN:
-                    {
-                        // --- State Definitions ---
-                        // 0 = Disconnected
-                        // 1 = Connected
-                        // 2 = Connecting
-                        // -------------------------
-
-                        // Get the websocket for THIS chip, or null if it doesn't exist yet
-                        webInSockets.TryGetValue(chip, out WebSocket websocket_in);
-
-                        // --- 1. Connection Logic ---
+                        // (Uses InputPins[0] for connect/disconnect)
                         if (chip.InternalState[0] == 0 && chip.InputPins[0].State.GetBit(0) == PinState.LogicHigh)
                         {
                             chip.InternalState[0] = 2;
-                            Debug.Log("State set to 2 (Connecting)...");
+                            Debug.Log("WebClient State set to 2 (Connecting)...");
 
-                            if (websocket_in != null && websocket_in.State == WebSocketState.Open)
+                            if (websocket_client != null && websocket_client.State == WebSocketState.Open)
                             {
-                                websocket_in.Close();
-                                Debug.Log("Websocket already open! -> CLOSING");
-                                chip.InternalState[0] = 0; // Reset to disconnected
+                                websocket_client.Close();
+                                Debug.Log("WebClient already open! -> CLOSING");
+                                chip.InternalState[0] = 0;
                                 return;
                             }
 
-                            websocket_in = new WebSocket($"ws://localhost:{chip.InternalState[1]}");
+                            // Read port from InternalState[1]
+                            websocket_client = new WebSocket($"ws://localhost:{chip.InternalState[1]}");
 
-                            websocket_in.OnOpen += () =>
+                            websocket_client.OnOpen += () =>
                             {
-                                Debug.Log("Connection open!");
-                                websocket_in.SendText("DLS - Connection Initiated");
+                                Debug.Log("WebClient Connection open!");
+                                websocket_client.SendText("DLS - WebClient Connection Initiated");
                                 chip.InternalState[0] = 1; // Set state to "Connected"
                             };
 
-                            websocket_in.OnError += (e) =>
+                            websocket_client.OnError += (e) =>
                             {
-                                Debug.Log("Error! " + e);
+                                Debug.Log("WebClient Error! " + e);
                                 chip.InternalState[0] = 0; // Set state back to "Disconnected"
-                                webInSockets.TryRemove(chip, out _); // Clean up dictionary
+                                webClientSockets.TryRemove(chip, out _); // Clean up dictionary
                             };
 
-                            websocket_in.OnClose += (e) =>
+                            websocket_client.OnClose += (e) =>
                             {
-                                Debug.Log("Connection closed!");
+                                Debug.Log("WebClient Connection closed!");
                                 chip.InternalState[0] = 0; // Set state back to "Disconnected"
-                                webInSockets.TryRemove(chip, out _); // Clean up dictionary
+                                webClientSockets.TryRemove(chip, out _); // Clean up dictionary
                             };
 
-                            websocket_in.OnMessage += (bytes) =>
+                            // --- OnMessage (Receiving Data) ---
+                            // (This is the logic from WebIN)
+                            websocket_client.OnMessage += (bytes) =>
                             {
                                 var message = System.Text.Encoding.UTF8.GetString(bytes).Trim();
 
                                 if (message.Length >= 8)
                                 {
-                                    // *** BIT ORDER FIX ***
-                                    // This now maps message[0] (bit 7) to chip bit 7, etc.
                                     for (int i = 0; i < 8; i++)
                                     {
                                         bool high = message[i] == '1';
+                                        // Set data on OutputPins[0]
                                         chip.OutputPins[0].State.SetBit(7 - i, high ? PinState.LogicHigh : PinState.LogicLow);
                                     }
                                 }
                             };
 
-                            // Store this websocket instance in the dictionary
-                            webInSockets[chip] = websocket_in;
-                            websocket_in.Connect();
+                            // Store this websocket instance in the new dictionary
+                            webClientSockets[chip] = websocket_client;
+                            websocket_client.Connect();
                         }
 
-                        // --- 2. "Update" Logic (while connected) ---
+                        // --- 2. "Update" Logic (Sending Data) ---
                         if (chip.InternalState[0] == 1) // Only run if "Connected"
                         {
-                            if (websocket_in != null)
+                            if (websocket_client != null)
                             {
-                                websocket_in.DispatchMessageQueue();
+                                // (From WebIN) Process incoming messages
+                                websocket_client.DispatchMessageQueue();
 
+                                // (From WebIN) Throttle counter
                                 chip.InternalState[2]++;
+
+                                // (From WebIN) Send every 60 ticks
                                 if (chip.InternalState[2] > 60)
                                 {
-                                    websocket_in.SendText("DLS - Ping");
+                                    // --- THIS IS THE MERGE ---
+                                    // (Logic from WebOUT, but using InputPins[1] for data)
+                                    var sb = new System.Text.StringBuilder(8);
+                                    for (int i = 0; i < 8; i++)
+                                    {
+                                        uint bitState = chip.InputPins[1].State.GetBit(7 - i);
+                                        sb.Append(bitState == PinState.LogicHigh ? '1' : '0');
+                                    }
+
+                                    // (From WebIN, but message is now our 8-bit data)
+                                    websocket_client.SendText(sb.ToString());
                                     chip.InternalState[2] = 0; // Reset the counter
                                 }
                             }
                         }
 
                         // --- 3. Disconnection Logic ---
+                        // (Uses InputPins[0] for disconnect)
                         if (chip.InputPins[0].State.GetBit(0) == PinState.LogicLow && (chip.InternalState[0] == 1 || chip.InternalState[0] == 2))
                         {
-                            Debug.Log("Disconnect signal received. Closing connection.");
+                            Debug.Log("WebClient Disconnect signal received. Closing connection.");
                             chip.InternalState[0] = 0; // Set state to "Disconnected"
                             chip.OutputPins[0].State.SetBit(0, PinState.LogicDisconnected);
 
-                            if (websocket_in != null)
+                            if (websocket_client != null)
                             {
-                                websocket_in.Close();
-                                // No need to remove from dict here, OnClose event will handle it
+                                websocket_client.Close();
                             }
                         }
 

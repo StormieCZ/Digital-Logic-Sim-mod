@@ -19,8 +19,7 @@ namespace DLS.Description
 			{ ChipType.TriStateBuffer, "3-STATE BUFFER" },
 
 			//---- Websocket Chips ----
-			{ ChipType.WebIN, "WS-IN" },
-            { ChipType.WebOUT, "WS-OUT" },
+			{ ChipType.WebClient, "WebSocket" },
 
 			// ---- Memory ----
 			{ ChipType.dev_Ram_8Bit, "dev.RAM-8" },

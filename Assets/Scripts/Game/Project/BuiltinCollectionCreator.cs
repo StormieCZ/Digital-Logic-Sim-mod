@@ -28,9 +28,8 @@ namespace DLS.Game
 					ChipType.TriStateBuffer
 				),
 
-				CreateChipCollection("WebSockets",
-                    ChipType.WebIN,
-					ChipType.WebOUT
+				CreateChipCollection("WebSocket",
+                    ChipType.WebClient
                 ),
                 CreateChipCollection("IN/OUT",
 					ChipType.In_1Bit,

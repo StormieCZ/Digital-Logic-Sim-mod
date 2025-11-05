@@ -74,14 +74,7 @@ namespace DLS.Graphics
 			deleteEntry
 		};
 
-        static readonly MenuEntry[] entries_builtinWebSocketIN =
-{
-            new(Format("PORT"), OpenPortEditMenu, CanEditCurrentChip),
-            labelChipEntry,
-            deleteEntry
-        };
-
-        static readonly MenuEntry[] entries_builtinWebSocketOUT =
+        static readonly MenuEntry[] entries_builtinWebSocket =
 {
             new(Format("PORT"), OpenPortEditMenu, CanEditCurrentChip),
             labelChipEntry,
@@ -198,8 +191,7 @@ namespace DLS.Graphics
 							if (subChip.ChipType is ChipType.Key) activeContextMenuEntries = entries_builtinKeySubchip;
 							else if (ChipTypeHelper.IsRomType(subChip.ChipType)) activeContextMenuEntries = entries_builtinRomSubchip;
 							else if (subChip.ChipType is ChipType.Pulse) activeContextMenuEntries = entries_builtinPulseChip;
-                            else if (subChip.ChipType is ChipType.WebIN) activeContextMenuEntries = entries_builtinWebSocketIN;
-                            else if (subChip.ChipType is ChipType.WebOUT) activeContextMenuEntries = entries_builtinWebSocketOUT;
+                            else if (subChip.ChipType is ChipType.WebClient) activeContextMenuEntries = entries_builtinWebSocket;
                             else if (subChip.ChipType is ChipType.Script) activeContextMenuEntries = entries_builtinScriptID;
                             else if (ChipTypeHelper.IsBusType(subChip.ChipType)) activeContextMenuEntries = entries_builtinBus;
 							else activeContextMenuEntries = entries_builtinSubchip;

@@ -1,11 +1,12 @@
-using System;
-using System.Linq;
 using DLS.Description;
 using DLS.Game;
 using DLS.SaveSystem;
 using Seb.Helpers;
 using Seb.Vis;
 using Seb.Vis.UI;
+using System;
+using System.Linq;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 
 namespace DLS.Graphics
@@ -71,7 +72,7 @@ namespace DLS.Graphics
 
 		static int selectedProjectIndex;
 
-		static readonly string authorString = "Created by: Sebastian Lague";
+		static readonly string authorString = "Created by: Sebastian Lague\nModified by: StormieCZ";
 		static readonly string versionString = $"Version: {Main.DLSVersion} ({Main.LastUpdatedString})";
 		static string SelectedProjectName => allProjectDescriptions[selectedProjectIndex].ProjectName;
 
@@ -85,14 +86,14 @@ namespace DLS.Graphics
 			}
 
 			UI.DrawFullscreenPanel(ColHelper.MakeCol255(47, 47, 53));
-			const string title = "DIGITAL LOGIC SIM";
-			const float titleFontSize = 11.5f;
+			const string title = "Digital Logic Sim : Refurbished";
+			const float titleFontSize = 4.5f;
 			const float titleHeight = 24;
 			const float shaddowOffset = -0.33f;
-			Color shadowCol = ColHelper.MakeCol255(87, 94, 230);
+			Color shadowCol = ColHelper.MakeCol255(107, 3, 252);
 
-			UI.DrawText(title, FontType.Born2bSporty, titleFontSize, UI.Centre + Vector2.up * (titleHeight + shaddowOffset), Anchor.CentreTop, shadowCol);
-			UI.DrawText(title, FontType.Born2bSporty, titleFontSize, UI.Centre + Vector2.up * titleHeight, Anchor.CentreTop, Color.white);
+			UI.DrawText(title, FontType.JetbrainsMonoBold, titleFontSize, UI.Centre + Vector2.up * (titleHeight + shaddowOffset), Anchor.CentreTop, shadowCol);
+			UI.DrawText(title, FontType.JetbrainsMonoBold, titleFontSize, UI.Centre + Vector2.up * titleHeight, Anchor.CentreTop, Color.white);
 			DrawVersionInfo();
 
 			switch (activeMenuScreen)
@@ -191,7 +192,7 @@ namespace DLS.Graphics
 
 			for (int i = 0; i < openProjectButtonStates.Length; i++)
 			{
-				bool buttonEnabled = activePopup == PopupKind.None && (compatibleProject || i == backButtonIndex || (i == deleteButtonIndex && projectSelected));
+				bool buttonEnabled = activePopup == PopupKind.None && (true || i == backButtonIndex || (i == deleteButtonIndex && projectSelected));
 				openProjectButtonStates[i] = buttonEnabled;
 			}
 
@@ -200,8 +201,8 @@ namespace DLS.Graphics
 
 			if (projectSelected && !compatibleProject)
 			{
-				Vector2 errorMessagePos = UI.PrevBounds.BottomLeft + Vector2.down * (DrawSettings.DefaultButtonSpacing * 2);
-				UI.DrawText(projectCompatibilities[selectedProjectIndex].message, buttonTheme.font, buttonTheme.fontSize, errorMessagePos, Anchor.TopLeft, Color.yellow);
+				//Vector2 errorMessagePos = UI.PrevBounds.CentreBottom + Vector2.down * (DrawSettings.DefaultButtonSpacing * 2);
+				//UI.DrawText(projectCompatibilities[selectedProjectIndex].message + " BUT WE DONT CARE!", buttonTheme.font, buttonTheme.fontSize, errorMessagePos, Anchor.CentreTop, Color.red);
 			}
 
 			// ---- Handle button input ----
@@ -410,8 +411,22 @@ namespace DLS.Graphics
 		{
 			if (kind is PopupKind.NamePopup_RenameProject or PopupKind.NamePopup_DuplicateProject)
 			{
-				if (kind is PopupKind.NamePopup_RenameProject) Saver.RenameProject(SelectedProjectName, name);
-				if (kind is PopupKind.NamePopup_DuplicateProject) Saver.DuplicateProject(SelectedProjectName, name);
+				if (kind is PopupKind.NamePopup_RenameProject) {
+                    try
+					{
+                        Saver.RenameProject(SelectedProjectName, name);
+                    }
+
+					catch { }
+                }
+				if (kind is PopupKind.NamePopup_DuplicateProject) {
+					try
+					{
+                        Saver.DuplicateProject(SelectedProjectName, name);
+                    }
+
+					catch { }
+				} 
 
 				RefreshLoadedProjects();
 				selectedProjectIndex = 0; // the modified project will now be at top of list
@@ -446,10 +461,15 @@ namespace DLS.Graphics
 				}
 				else if (buttonIndex == 1) // Delete
 				{
-					Saver.DeleteProject(SelectedProjectName);
-					selectedProjectIndex = -1;
-					RefreshLoadedProjects();
-					activePopup = PopupKind.None;
+					try
+					{
+                        Saver.DeleteProject(SelectedProjectName);
+                        selectedProjectIndex = -1;
+                        RefreshLoadedProjects();
+                        activePopup = PopupKind.None;
+                    }
+
+					catch { }
 				}
 			}
 		}
@@ -458,8 +478,9 @@ namespace DLS.Graphics
 		{
 			ButtonTheme theme = DrawSettings.ActiveUITheme.MainMenuButtonTheme;
 
-			UI.DrawText("Todo: write something helpful here...", theme.font, theme.fontSize, UI.Centre, Anchor.Centre, Color.white);
-			if (UI.Button("Back", theme, UI.CentreBottom + Vector2.up * 22, Vector2.zero, true, true, true))
+			UI.DrawText("\"A digital pantheon! From the primordial NAND, one summons forth the spirits of XOR and ADDER. 'Tis a grand work of intellectual alchemy.\"\n-Thales of Miletus (The Younger) (450 B.C.)", theme.font, 1f, UI.Centre, Anchor.Centre, Color.white);
+
+            if (UI.Button("Back", theme, UI.CentreBottom + Vector2.up * 22, Vector2.zero, true, true, true))
 			{
 				BackToMain();
 			}
@@ -475,7 +496,7 @@ namespace DLS.Graphics
 
 			Vector2 versionPos = UI.PrevBounds.CentreLeft + Vector2.right * pad;
 			Vector2 datePos = UI.PrevBounds.CentreRight + Vector2.left * pad;
-			UI.DrawText(authorString, theme.FontRegular, theme.FontSizeRegular, versionPos, Anchor.TextCentreLeft, col);
+			UI.DrawText(authorString, theme.FontRegular, 1f, versionPos, Anchor.TextCentreLeft, col);
 			UI.DrawText(versionString, theme.FontRegular, theme.FontSizeRegular, datePos, Anchor.TextCentreRight, col);
 		}
 

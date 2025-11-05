@@ -34,8 +34,7 @@ namespace DLS.Game
                 CreateAdjsClock(),
                 CreatePulse(),
 				// ---- Websocket Chips ----
-				CreateWebsocketIN(),
-				CreateWebsocketOUT(),
+				CreateWebsocketClient(),
 				// ---- Audio ----
 				CreateSpeaker(),
 				// ---- Code ----
@@ -151,23 +150,26 @@ namespace DLS.Game
 			return CreateBuiltinChipDescription(ChipType.Clock, size, col, null, outputPins);
 		}
 
-        static ChipDescription CreateWebsocketIN()
-        {
-            Vector2 size = new(GridHelper.SnapToGrid(2.5f), GridSize * 3.5f);
-            Color col = new(0.1f, 0.5f, 0.234f);
-            PinDescription[] outputPins = { CreatePinDescription("OUT", 0, PinBitCount.Bit8) };
-            PinDescription[] inputPins = { CreatePinDescription("ENABLE", 1) };
 
-            return CreateBuiltinChipDescription(ChipType.WebIN, size, col, inputPins, outputPins);
-        }
 
-        static ChipDescription CreateWebsocketOUT()
+        static ChipDescription CreateWebsocketClient()
         {
-            Vector2 size = new(GridHelper.SnapToGrid(2.5f), GridSize * 8.5f);
+            Vector2 size = new(GridHelper.SnapToGrid(2f), GridSize * 6f);
             Color col = new(0.1f, 0.5f, 0.1f);
-            PinDescription[] inputPins = { CreatePinDescription("IN", 0, PinBitCount.Bit8), CreatePinDescription("ENABLE", 1) };
+            PinDescription[] inputPins = { CreatePinDescription("CONNECT", 0), CreatePinDescription("DATA IN", 1, PinBitCount.Bit8) };
+			PinDescription[] outputPins = { CreatePinDescription("DATA OUT", 2, PinBitCount.Bit8) };
 
-            return CreateBuiltinChipDescription(ChipType.WebOUT, size, col, inputPins, null);
+            DisplayDescription[] displays =
+{
+                new()
+                {
+                    Position = Vector2.right / 1.2f,
+                    Scale = 4,
+                    SubChipID = -1
+                }
+            };
+
+            return CreateBuiltinChipDescription(ChipType.WebClient, size, col, inputPins, outputPins, displays);
         }
 
         static ChipDescription CreateSpeaker()
